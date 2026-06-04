@@ -46,7 +46,7 @@ def run_stage(output: CompilerOutput) -> CompilerOutput:
   }
   
   schemas, tokens, cost = gemini_service.query_structured(
-    prompt=f"Input: {json.dumps(input_data)}",
+    prompt=f"Input: {json.dumps(input_data)}\nContext Prompt: {output.prompt}",
     system_instruction=SYSTEM_INSTRUCTION,
     response_schema=FullSchema
   )

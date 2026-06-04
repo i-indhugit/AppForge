@@ -29,7 +29,7 @@ def run_stage(output: CompilerOutput) -> CompilerOutput:
   intent_json = json.dumps(output.intent.model_dump())
   
   ast, tokens, cost = gemini_service.query_structured(
-    prompt=f"Intent: {intent_json}",
+    prompt=f"Intent: {intent_json}\nContext Prompt: {output.prompt}",
     system_instruction=SYSTEM_INSTRUCTION,
     response_schema=ASTSchema
   )

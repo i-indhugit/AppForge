@@ -34,7 +34,11 @@ def generate_db_ddl(schemas: FullSchema) -> str:
             if col.primary_key:
                 col_str += " PRIMARY KEY"
             elif col.foreign_key:
-                col_str += f" REFERENCES {col.foreign_key}"
+                fk_parts = col.foreign_key.split(".")
+                if len(fk_parts) == 2:
+                    col_str += f" REFERENCES {fk_parts[0]}({fk_parts[1]})"
+                else:
+                    col_str += f" REFERENCES {col.foreign_key}"
             
             cols.append(col_str)
         ddl += ",\n".join(cols)
@@ -95,13 +99,21 @@ def generate_fastapi_main(schemas: FullSchema) -> str:
         method = ep.method.lower()
         desc = ep.description
         
+        # Skip custom implemented auth endpoints in loop
+        if path in ["/api/auth/login", "/api/auth/signup"]:
+            continue
+            
         # Determine python function name
         func_name = ep.path.strip("/").replace("/", "_").replace("{", "").replace("}", "")
         func_name = f"{method}_{func_name}" if func_name else f"{method}_root"
         
+        dep_str = ""
+        if "login" not in path.lower() and "signup" not in path.lower():
+            dep_str = ", current_user: dict = Depends(get_current_active_user)"
+            
         endpoints_code += f"""
 @app.{method}("{path}", summary="{desc}")
-async def {func_name}(body: dict = None, current_user: dict = Depends(get_current_active_user)):
+async def {func_name}(body: dict = None{dep_str}):
     # Business logic rules execution
     # Permissions check based on Auth rules
     return {{"status": "success", "message": "Endpoint executed successfully", "data": body}}
@@ -113,6 +125,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
+from sqlalchemy.orm import Session
+
+from app.database import init_db, get_db
+from app.models import User
+from app.auth import get_password_hash, verify_password, create_access_token
+
+# Initialize SQLite database and tables on startup
+init_db()
 
 app = FastAPI(
     title="AppForge AI Generated Application",
@@ -135,6 +155,33 @@ async def get_current_active_user():
 @app.get("/")
 async def root():
     return {{"name": "AppForge AI Generated API", "version": "1.0.0", "status": "healthy"}}
+
+@app.post("/api/auth/signup", summary="Sign up a new user")
+async def post_api_auth_signup(body: dict = None, db: Session = Depends(get_db)):
+    if not body or "email" not in body or "password" not in body:
+        raise HTTPException(status_code=400, detail="Email and password required")
+    existing = db.query(User).filter(User.email == body["email"]).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="User already registered")
+    
+    hashed = get_password_hash(body["password"])
+    user = User(email=body["email"], hashed_password=hashed, role=body.get("role", "customer"))
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {{"status": "success", "user_id": user.id}}
+
+@app.post("/api/auth/login", summary="Authenticate user credentials")
+async def post_api_auth_login(body: dict = None, db: Session = Depends(get_db)):
+    if not body or "email" not in body or "password" not in body:
+        raise HTTPException(status_code=400, detail="Email and password required")
+    user = db.query(User).filter(User.email == body["email"]).first()
+    if not user or not verify_password(body["password"], user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    token = create_access_token(data={{"sub": user.email, "role": user.role}})
+    return {{"access_token": token, "token_type": "bearer", "role": user.role}}
+
 {endpoints_code}
 """
     return main_code
@@ -328,6 +375,31 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
 """
         zip_file.writestr("backend/app/auth.py", auth_py)
         files["backend/app/auth.py"] = auth_py
+
+        database_py = """# Database setup and session connection
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from app.models import Base
+
+SQLALCHEMY_DATABASE_URL = "sqlite:///./appforge.db"
+
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+def init_db():
+    Base.metadata.create_all(bind=engine)
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+"""
+        zip_file.writestr("backend/app/database.py", database_py)
+        files["backend/app/database.py"] = database_py
 
         # 3. Frontend Next.js
         pkg_json = """{

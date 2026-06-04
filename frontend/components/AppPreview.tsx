@@ -13,6 +13,7 @@ export default function AppPreview({ schemas, previewData }: AppPreviewProps) {
   const [dbState, setDbState] = useState<Record<string, any[]>>({});
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [notification, setNotification] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
 
   // Initialize DB State and select first active page on load
   useEffect(() => {
@@ -82,6 +83,199 @@ export default function AppPreview({ schemas, previewData }: AppPreviewProps) {
     setFormData({});
   };
 
+  const isAuthPage = currentPageObj && ["signin", "signup", "forgotpassword", "login", "register", "forgot-password"].includes(currentPageObj.name.toLowerCase());
+
+  const renderAuthPage = (page: any) => {
+    const layout = page.layout || "centered_card";
+    const designStyle = page.design_style || "glassmorphism";
+    const comp = page.components?.[0] || { type: "form", fields: ["email", "password"] };
+    const fields = comp.props?.fields || comp.fields || ["email", "password"];
+    const submitLabel = comp.props?.submit_label || (page.name === "SignUp" ? "Sign Up" : page.name === "ForgotPassword" ? "Reset Password" : "Sign In");
+
+    const isSignIn = ["signin", "login"].includes(page.name.toLowerCase());
+    const isSignUp = ["signup", "register"].includes(page.name.toLowerCase());
+    const isForgot = ["forgotpassword", "forgot-password"].includes(page.name.toLowerCase());
+
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      setLoading(true);
+      setTimeout(() => {
+        setLoading(false);
+        if (isSignIn) {
+          setNotification("Successfully authenticated!");
+          const dash = previewData.pages.find((p: any) => p.name.toLowerCase() === "dashboard");
+          setActivePage(dash ? dash.name : previewData.pages[0].name);
+        } else if (isSignUp) {
+          setNotification("Account created! Redirecting to login...");
+          const loginPage = previewData.pages.find((p: any) => ["signin", "login"].includes(p.name.toLowerCase()));
+          setActivePage(loginPage ? loginPage.name : "Dashboard");
+        } else if (isForgot) {
+          setNotification("Password reset instructions sent!");
+        }
+      }, 1200);
+    };
+
+    let styleClass = "";
+    if (designStyle === "glassmorphism") {
+      styleClass = "bg-zinc-900/40 border border-zinc-800 backdrop-blur-md shadow-2xl";
+    } else if (designStyle === "minimal" || designStyle === "minimal_dark") {
+      styleClass = "bg-zinc-950 border border-zinc-900 shadow-xl";
+    } else {
+      styleClass = "bg-gradient-to-br from-zinc-900 via-zinc-950 to-zinc-900 border border-zinc-800 shadow-2xl";
+    }
+
+    const formContent = (
+      <div className={`p-8 rounded-2xl w-full max-w-md ${styleClass} mx-auto`}>
+        <div className="mb-6">
+          <h3 className="text-xl font-bold text-white tracking-tight">
+            {isSignIn ? "Welcome Back" : isSignUp ? "Create your account" : "Reset your password"}
+          </h3>
+          <p className="text-xs text-zinc-500 mt-1">
+            {isSignIn ? "Enter your credentials to access your workspace" : isSignUp ? "Get started with your developer account" : "Enter your email to receive recovery instructions"}
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {fields.map((f: string) => {
+            const isPassword = f.includes("password");
+            const label = f.replace("_", " ").toUpperCase();
+            return (
+              <div key={f}>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                    {label}
+                  </label>
+                  {isSignIn && isPassword && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const forgotPage = previewData.pages.find((p: any) => ["forgotpassword", "forgot-password"].includes(p.name.toLowerCase()));
+                        if (forgotPage) setActivePage(forgotPage.name);
+                      }}
+                      className="text-[10.5px] text-emerald-400 hover:text-emerald-300 font-semibold cursor-pointer transition-colors"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+                <input
+                  type={isPassword ? "password" : "text"}
+                  required
+                  placeholder={`Enter your ${f.replace("_", " ")}`}
+                  className="w-full bg-zinc-950/80 border border-zinc-800 rounded-lg p-2.5 text-zinc-100 focus:outline-none focus:border-emerald-500 text-xs transition-colors"
+                />
+              </div>
+            );
+          })}
+
+          {isSignIn && (
+            <div className="flex items-center justify-between py-1">
+              <label className="flex items-center space-x-2 text-xs text-zinc-400 cursor-pointer">
+                <input type="checkbox" className="rounded border-zinc-800 bg-zinc-950 text-emerald-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5" />
+                <span>Remember me</span>
+              </label>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-zinc-950 font-bold px-4 py-2.5 rounded-lg text-xs w-full transition-all flex items-center justify-center space-x-2 cursor-pointer mt-6"
+          >
+            {loading ? (
+              <div className="w-3.5 h-3.5 border-2 border-zinc-950 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <span>{submitLabel}</span>
+            )}
+          </button>
+        </form>
+
+        <div className="mt-6 pt-4 border-t border-zinc-900 text-center">
+          {isSignIn && (
+            <span className="text-xs text-zinc-500">
+              Don't have an account?{" "}
+              <button
+                onClick={() => {
+                  const signUpPage = previewData.pages.find((p: any) => ["signup", "register"].includes(p.name.toLowerCase()));
+                  if (signUpPage) setActivePage(signUpPage.name);
+                }}
+                className="text-emerald-400 hover:text-emerald-300 font-semibold cursor-pointer"
+              >
+                Sign Up
+              </button>
+            </span>
+          )}
+          {isSignUp && (
+            <span className="text-xs text-zinc-500">
+              Already have an account?{" "}
+              <button
+                onClick={() => {
+                  const signInPage = previewData.pages.find((p: any) => ["signin", "login"].includes(p.name.toLowerCase()));
+                  if (signInPage) setActivePage(signInPage.name);
+                }}
+                className="text-emerald-400 hover:text-emerald-300 font-semibold cursor-pointer"
+              >
+                Sign In
+              </button>
+            </span>
+          )}
+          {isForgot && (
+            <button
+              onClick={() => {
+                const signInPage = previewData.pages.find((p: any) => ["signin", "login"].includes(p.name.toLowerCase()));
+                if (signInPage) setActivePage(signInPage.name);
+              }}
+              className="text-xs text-emerald-400 hover:text-emerald-300 font-semibold cursor-pointer"
+            >
+              Back to Sign In
+            </button>
+          )}
+        </div>
+      </div>
+    );
+
+    if (layout === "split_layout") {
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 h-full min-h-[460px] bg-zinc-950">
+          <div className="hidden md:flex flex-col justify-between p-10 bg-gradient-to-tr from-zinc-950 via-zinc-900 to-zinc-950 border-r border-zinc-900 text-left relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-[80px]" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/5 rounded-full blur-[80px]" />
+            <div className="z-10">
+              <div className="flex items-center space-x-2 text-emerald-400 mb-6">
+                <div className="w-5 h-5 rounded bg-emerald-500/20 flex items-center justify-center font-bold text-xs">A</div>
+                <span className="text-sm font-bold text-white tracking-wide">AppForge Cloud</span>
+              </div>
+              <h2 className="text-2xl font-bold text-white leading-tight tracking-tight mt-12">
+                Enterprise application engine compile platform.
+              </h2>
+              <p className="text-xs text-zinc-400 mt-4 leading-relaxed max-w-sm">
+                Scale your relational schemas, generate clean API routers, and inspect live previews natively.
+              </p>
+            </div>
+            <div className="z-10 bg-zinc-900/40 border border-zinc-800 p-4 rounded-xl max-w-xs backdrop-blur-md">
+              <div className="text-[10px] uppercase font-bold text-zinc-500">Security Gate</div>
+              <div className="text-xs font-semibold text-white mt-1">Hashed Passwords & JWT Tokens</div>
+              <div className="text-[10px] text-zinc-400 mt-1 leading-relaxed">
+                Auth pipelines generate secure bcrypt crypt keys and authenticate routes automatically.
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center justify-center p-6 bg-zinc-950">
+            {formContent}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-center justify-center min-h-[460px] py-10 px-6 bg-zinc-950 relative overflow-hidden">
+        <div className="absolute -top-16 -left-16 w-52 h-52 bg-emerald-500/5 rounded-full blur-[60px]" />
+        <div className="absolute -bottom-16 -right-16 w-52 h-52 bg-blue-500/5 rounded-full blur-[60px]" />
+        {formContent}
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col h-[550px] border border-zinc-900 rounded-xl overflow-hidden glass-panel bg-zinc-950/10">
       {/* Simulation Banner Header */}
@@ -126,8 +320,10 @@ export default function AppPreview({ schemas, previewData }: AppPreviewProps) {
       </div>
 
       {/* Dynamic Viewport */}
-      <div className="flex-1 p-6 overflow-y-auto bg-zinc-950/40 text-left">
-        {currentPageObj ? (
+      <div className={`flex-1 overflow-y-auto bg-zinc-950/40 text-left ${isAuthPage ? "" : "p-6"}`}>
+        {isAuthPage ? (
+          renderAuthPage(currentPageObj)
+        ) : currentPageObj ? (
           <div className="space-y-6">
             {currentPageObj.components.map((comp: any, idx: number) => {
               // RENDER stats/card component

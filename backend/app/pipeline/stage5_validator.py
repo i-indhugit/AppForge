@@ -22,7 +22,7 @@ def validate_schemas(schemas: FullSchema, roles_list: List[str], services_list: 
   # 1. UI-to-API Binding Validation
   for page in schemas.ui.pages:
     # Check if UI page exists in IR pages
-    if page.name.lower() not in pages_set and page.name.lower() not in ["login", "dashboard"]:
+    if page.name.lower() not in pages_set and page.name.lower() not in ["login", "signup", "dashboard"]:
       errors.append(ValidationErrorDetail(
         type="missing_ir_page",
         location=f"ui.pages[{page.name}]",
@@ -67,7 +67,7 @@ def validate_schemas(schemas: FullSchema, roles_list: List[str], services_list: 
     target_entity = path_parts[0]
     
     # Check for Authentication endpoints (which don't map directly to entities)
-    if target_entity in ["login", "token", "logout", "session"]:
+    if target_entity in ["login", "signup", "token", "logout", "session"]:
       continue
       
     target_table = entity_to_table_map.get(target_entity)
@@ -106,7 +106,7 @@ def validate_schemas(schemas: FullSchema, roles_list: List[str], services_list: 
 
   # 4. Page-to-Service check
   for page in schemas.ui.pages:
-    if page.name.lower() in ["login", "dashboard"]:
+    if page.name.lower() in ["login", "signup", "dashboard"]:
       continue
     service_found = False
     for svc in services_set:

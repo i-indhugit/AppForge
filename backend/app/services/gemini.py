@@ -43,6 +43,7 @@ MOCK_CRM_PRESET = {
     ASTNode(type="Entity", name="Deal"),
     ASTNode(type="Entity", name="Subscription"),
     ASTNode(type="Page", name="Login"),
+    ASTNode(type="Page", name="SignUp"),
     ASTNode(type="Page", name="Dashboard"),
     ASTNode(type="Page", name="Contacts"),
     ASTNode(type="Page", name="Deals"),
@@ -83,7 +84,7 @@ MOCK_CRM_PRESET = {
         IRField(name="status", type="string", required=True)
       ])
     ],
-    pages=["Login", "Dashboard", "Contacts", "Deals"],
+    pages=["Login", "SignUp", "Dashboard", "Contacts", "Deals"],
     services=["AuthService", "ContactService", "DealService"],
     events=["UserRegistered", "DealClosed"],
     business_rules=["validate_deal_value", "restrict_contact_limit"]
@@ -119,6 +120,9 @@ MOCK_CRM_PRESET = {
         UIPage(name="Login", route="/login", reason="Authentication portal for secure access control", components=[
           UIComponent(name="login_form", type="form", props={"fields": ["email", "password"], "submit_label": "Login"}, reason="Collects login credentials")
         ]),
+        UIPage(name="SignUp", route="/signup", reason="Authentication registry portal for new users", components=[
+          UIComponent(name="signup_form", type="form", props={"fields": ["email", "password", "role"], "submit_label": "Sign Up"}, reason="Collects signup credentials")
+        ]),
         UIPage(name="Dashboard", route="/dashboard", reason="Central KPI dashboard for pipeline visibility", components=[
           UIComponent(name="stats_summary", type="card", props={"metrics": ["Total Contacts", "Open Deals"]}, reason="Displays core platform KPI metrics")
         ]),
@@ -135,6 +139,8 @@ MOCK_CRM_PRESET = {
     api=APISchema(
       endpoints=[
         APIEndpoint(path="/api/auth/login", method="POST", request_body_schema={"email": "string", "password": "string"}, response_schema={"access_token": "string", "role": "string"}, description="Authenticate user credentials", reason="Secure entry endpoint for auth token generation"),
+        APIEndpoint(path="/api/auth/signup", method="POST", request_body_schema={"email": "string", "password": "string", "role": "string"}, response_schema={"status": "success", "user_id": "integer"}, description="Sign up a new user", reason="Creates user credentials record in database"),
+        APIEndpoint(path="/api/auth/logout", method="POST", request_body_schema={}, response_schema={"status": "success"}, description="Logs out the current session", reason="Destroys user session token"),
         APIEndpoint(path="/api/contacts", method="GET", response_schema={"contacts": "array"}, description="Retrieve contact list", reason="Reads contact records filter-constrained by current user ownership"),
         APIEndpoint(path="/api/contacts", method="POST", request_body_schema={"first_name": "string", "last_name": "string", "email": "string", "phone": "string"}, response_schema={"id": "integer"}, description="Create new lead contact", reason="Validates and inserts a new contact record")
       ],
@@ -187,7 +193,7 @@ def generate_generic_mock(prompt: str, stage: str) -> BaseModel:
   features = ["authentication", "dashboard", "items"]
   roles = ["admin", "user"]
   entities = ["User", "Item"]
-  pages = ["Login", "Dashboard", "Items"]
+  pages = ["Login", "SignUp", "Dashboard", "Items"]
   services = ["AuthService", "ItemService"]
   events = ["ItemCreated"]
 
@@ -196,7 +202,7 @@ def generate_generic_mock(prompt: str, stage: str) -> BaseModel:
     features = ["authentication", "courses", "enrollments", "dashboard"]
     roles = ["admin", "instructor", "student"]
     entities = ["User", "Course", "Enrollment"]
-    pages = ["Login", "Dashboard", "Courses"]
+    pages = ["Login", "SignUp", "Dashboard", "Courses"]
     services = ["AuthService", "CourseService"]
     events = ["UserEnrolled"]
   elif "store" in prompt_lower or "shop" in prompt_lower or "marketplace" in prompt_lower:
@@ -204,7 +210,7 @@ def generate_generic_mock(prompt: str, stage: str) -> BaseModel:
     features = ["authentication", "catalog", "orders"]
     roles = ["admin", "merchant", "customer"]
     entities = ["User", "Product", "Order"]
-    pages = ["Login", "Dashboard", "Products"]
+    pages = ["Login", "SignUp", "Dashboard", "Products"]
     services = ["AuthService", "ProductService"]
     events = ["OrderPlaced"]
 
@@ -279,17 +285,22 @@ def generate_generic_mock(prompt: str, stage: str) -> BaseModel:
       UIPage(name="Login", route="/login", reason="Security entry", components=[
         UIComponent(name="login_form", type="form", props={"fields": ["email", "password"], "submit_label": "Login"}, reason="Creds form")
       ]),
+      UIPage(name="SignUp", route="/signup", reason="Security registration", components=[
+        UIComponent(name="signup_form", type="form", props={"fields": ["email", "password", "role"], "submit_label": "Register"}, reason="Register form")
+      ]),
       UIPage(name="Dashboard", route="/dashboard", reason="KPI overview", components=[
-        UIComponent(name="stats_card", type="card", props={"metrics": ["Total Items"]}, reason="Summary stats widget")
+        UIComponent(name="stats_card", type="card", props={"metrics": [f"Total {entities[1]}s"]}, reason="Summary stats widget")
       ])
     ]
-    for p in pages[2:]:
+    for p in pages[3:]:
       ui_pages.append(UIPage(name=p, route=f"/{p.lower()}", reason=f"{p} viewer view", components=[
         UIComponent(name=f"{p.lower()}_table", type="table", props={"headers": ["Name"]}, reason="Renders database entries")
       ]))
 
     endpoints = [
       APIEndpoint(path="/api/auth/login", method="POST", request_body_schema={"email": "string", "password": "string"}, response_schema={"access_token": "string", "role": "string"}, description="Login endpoint", reason="Generates JWT auth token"),
+      APIEndpoint(path="/api/auth/signup", method="POST", request_body_schema={"email": "string", "password": "string", "role": "string"}, response_schema={"status": "success", "user_id": "integer"}, description="Signup endpoint", reason="Creates database user credentials"),
+      APIEndpoint(path="/api/auth/logout", method="POST", request_body_schema={}, response_schema={"status": "success"}, description="Logout endpoint", reason="Destroys user session token"),
       APIEndpoint(path=f"/api/{entities[1].lower()}s", method="GET", response_schema={"data": "array"}, description=f"Get {entities[1]}s", reason=f"Query {entities[1]} registry")
     ]
 

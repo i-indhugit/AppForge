@@ -32,7 +32,7 @@ def run_stage(output: CompilerOutput) -> CompilerOutput:
   ir_json = json.dumps(output.ir.model_dump())
   
   arch, tokens, cost = gemini_service.query_structured(
-    prompt=f"IR: {ir_json}",
+    prompt=f"IR: {ir_json}\nContext Prompt: {output.prompt}",
     system_instruction=SYSTEM_INSTRUCTION,
     response_schema=ArchitecturePlan
   )
