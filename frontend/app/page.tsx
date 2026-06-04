@@ -34,6 +34,8 @@ import CodeExplorer from "../components/CodeExplorer";
 import AppPreview from "../components/AppPreview";
 import { useCompilerStore, CompileRun } from "../store/compilerStore";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 export default function WorkspacePage() {
   const {
     prompt,
@@ -74,7 +76,7 @@ export default function WorkspacePage() {
   // Fetch benchmark results
   const fetchDashboardData = async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/evaluation/results");
+      const res = await fetch(`${API_BASE}/api/evaluation/results`);
       if (res.ok) {
         const d = await res.json();
         setDashboardData(d);
@@ -94,7 +96,7 @@ export default function WorkspacePage() {
   const triggerSuite = async () => {
     setRunningSuite(true);
     try {
-      await fetch("http://localhost:8000/api/evaluation/run", { method: "POST" });
+      await fetch(`${API_BASE}/api/evaluation/run`, { method: "POST" });
       alert("Stress tests benchmark suite started in the background! Wait ~10s and refresh.");
     } catch (err) {
       console.error(err);
@@ -107,7 +109,7 @@ export default function WorkspacePage() {
   const triggerSingle = async (id: string) => {
     setRunningSingleId(id);
     try {
-      const res = await fetch(`http://localhost:8000/api/evaluation/run/${id}`, { method: "POST" });
+      const res = await fetch(`${API_BASE}/api/evaluation/run/${id}`, { method: "POST" });
       if (res.ok) {
         await fetchDashboardData();
       }
@@ -140,7 +142,7 @@ export default function WorkspacePage() {
     setLatencies({});
 
     try {
-      const res = await fetch("http://localhost:8000/api/compile", {
+      const res = await fetch(`${API_BASE}/api/compile`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt, force_mock: forceMock, api_key: apiKey }),
@@ -389,7 +391,7 @@ export default function WorkspacePage() {
             </span>
             {compilerOutput?.runtime?.zip_url && (
               <a
-                href={`http://localhost:8000${compilerOutput.runtime.zip_url}`}
+                href={`${API_BASE}${compilerOutput.runtime.zip_url}`}
                 className="bg-emerald-500 hover:bg-emerald-600 text-zinc-950 font-bold px-3 py-1.5 rounded-lg text-[10px] uppercase tracking-wide flex items-center space-x-1.5 transition-all shadow-md shadow-emerald-500/10"
               >
                 <Download className="w-3.5 h-3.5" />
